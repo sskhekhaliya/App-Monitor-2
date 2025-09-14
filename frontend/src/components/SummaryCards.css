@@ -1,0 +1,24 @@
+
+
+.icon-container{
+    padding: 10px;
+    border-radius: 34%;
+    display: flex;
+}
+
+.icon-total-container{
+    background-color: #e0f0ff;
+    color: #004998;
+    font-size: 1.5rem;
+}
+
+.icon-up-container{
+    background-color: #e6f4ea;
+    color: #28a745;
+}
+
+.icon-down-container{
+    background-color: #fdecea;
+    color: #dc3545;
+    color: #dc3545;
+}

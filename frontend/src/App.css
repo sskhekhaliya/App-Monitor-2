@@ -1,0 +1,64 @@
+/* frontend/src/App.css */
+#root {
+  width: 100%;
+  color: black;
+}
+
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background-color: #f4f7f9;
+  margin: 0;
+  padding: 0;
+}
+
+.app-layout {
+  display: flex;
+  height: 100vh;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  background-color: #fff;
+  padding: 15px 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.topbar h2 {
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+.search-bar {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  width: 300px;
+}
+
+.admin-user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-initials {
+  background-color: #004998;
+  color: white;
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}

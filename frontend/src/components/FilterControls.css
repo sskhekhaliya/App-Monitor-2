@@ -1,0 +1,97 @@
+/* frontend/src/components/FilterControls.css */
+.filter-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  background-color: #fff;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.filters {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.filters select {
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: #fff;
+  color: black;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+}
+
+.export-button {
+  padding: 10px 15px;
+  background-color: #a1a1a12e;
+  cursor: pointer;
+  border-radius: 5px;
+  color: black;
+  display: flex;
+    gap: 5px;
+    align-items: center;
+}
+
+.add-app-button-header {
+  padding: 10px 15px;
+  background-color: #004998;
+  color: white;
+  border: none;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+/* frontend/src/components/FilterControls.css */
+
+/* --- Dropdown Container --- */
+.add-app-dropdown-container {
+  position: relative; /* This is the key. It sets the positioning context for the dropdown-menu. */
+  display: inline-block; /* Allows the container to wrap its content */
+}
+
+/* --- Dropdown Button --- */
+.add-app-button-header {
+  padding: 10px 15px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  cursor: pointer;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* --- Dropdown Menu --- */
+.dropdown-menu {
+  position: absolute; /* This places the dropdown menu relative to its parent container. */
+  top: 100%; /* Positions the top of the menu just below the button. */
+  right: 0; /* Aligns the menu to the right of the container. */
+  background-color: #fff;
+  border: 1px solid #ddd;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 5px;
+  min-width: 180px;
+  z-index: 10; /* Ensures the dropdown appears on top of other content. */
+  display: flex;
+  flex-direction: column;
+}
+
+.dropdown-menu a {
+  padding: 10px 15px;
+  text-decoration: none;
+  color: #333;
+  transition: background-color 0.2s;
+}
+
+.dropdown-menu a:hover {
+  background-color: #f1f1f1;
+}

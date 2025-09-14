@@ -1,0 +1,57 @@
+/* src/pages/ApplicationDetailsPage.css */
+.details-container {
+  padding: 20px;
+}
+
+.back-button {
+  color: #555;
+  background: none;
+  border: 1px solid #ddd;
+  padding: 10px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+  margin-bottom: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-details-card {
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 30px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.app-details-card h2 {
+  margin-top: 0;
+  border-bottom: 2px solid #eee;
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+}
+
+.details-group p {
+  font-size: 1rem;
+  margin: 10px 0;
+}
+
+.details-group p strong {
+  color: #555;
+  min-width: 150px;
+  display: inline-block;
+}
+
+.details-group a {
+  color: #004998;
+  text-decoration: none;
+}
+
+.details-group a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+  .app-details-card {
+    padding: 20px;
+  }
+}
