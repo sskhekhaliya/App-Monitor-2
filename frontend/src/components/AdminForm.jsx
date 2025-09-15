@@ -61,8 +61,8 @@ const AdminForm = ({ onAddApplication, onEditApplication, onClose, editingApp })
         <input type="url" id="prodUrl" name="prodUrl" value={formData.prodUrl} onChange={handleChange} required />
       </div>
       <div className="form-group">
-        <label htmlFor="repoUrl">Repo URL</label>
-        <input type="url" id="repoUrl" name="repoUrl" value={formData.repoUrl} onChange={handleChange} required />
+        <label htmlFor="adoLink">ADO Link</label>
+        <input type="url" id="adoLink" name="adoLink" value={formData.adoLink} onChange={handleChange} required />
       </div>
       <div className="form-group">
         <label htmlFor="technicalOwner">Technical Owner</label>
