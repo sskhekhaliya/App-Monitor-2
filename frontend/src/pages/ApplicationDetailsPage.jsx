@@ -22,7 +22,8 @@ const ApplicationDetailsPage = ({ app, onClose }) => {
       <div className="app-details-card">
         <h2>{app.name}</h2>
         <div className="details-group">
-          <p><strong>App ID:</strong> {app._id}</p>
+          <p><strong>ID:</strong> {app._id}</p>
+          <p><strong>Application ID:</strong> {app.applicationID}</p>
           <p><strong>Business Owner:</strong> {app.businessOwner}</p>
           <p><strong>Technical Owner:</strong> {app.technicalOwner}</p>
           <p><strong>Product Owner:</strong> {app.productOwner}</p>

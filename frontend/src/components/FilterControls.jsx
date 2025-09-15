@@ -13,6 +13,8 @@ const FilterControls = ({
   technicalOwnerFilter,
   setTechnicalOwnerFilter,
   allTechnicalOwners,
+  searchTerm,
+  setSearchTerm,
   filteredApplications,
   onAddAppClick, // Now used for normal form
   onJSONUploadClick, // New prop for JSON upload
@@ -61,7 +63,12 @@ const FilterControls = ({
           {allDomains.map(domain => (
             <option key={domain} value={domain}>{domain}</option>
           ))}
-
+        </select>
+        <label>Technical Owner:</label>
+        <select value={technicalOwnerFilter} onChange={(e) => setTechnicalOwnerFilter(e.target.value)}>
+        {allTechnicalOwners.map(technicalOwner => (
+          <option key={technicalOwner} value={technicalOwner}>{technicalOwner}</option>
+          ))}
         </select>
       </div>
       <div className="actions">

@@ -17,6 +17,7 @@ const Dashboard = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [domainFilter, setDomainFilter] = useState('All');
+  const [technicalOwnerFilter, setTechnicalOwnerFilter] = useState('All');  
 
   const appList = Array.isArray(applications) ? applications : [];
 
@@ -28,8 +29,9 @@ const Dashboard = ({
     const matchesSearch = nameString.includes(searchString) || idString.includes(searchString);
     const matchesStatus = statusFilter === 'All' || app.status === statusFilter.toLowerCase();
     const matchesDomain = domainFilter === 'All' || app.domain === domainFilter;
+    const matchesOwner = technicalOwnerFilter === 'All' || app.technicalOwner ===technicalOwnerFilter;
 
-    return matchesSearch && matchesStatus && matchesDomain;
+    return matchesSearch && matchesStatus && matchesDomain && matchesOwner;
   });
 
   if (isLoading) {
@@ -41,7 +43,8 @@ const Dashboard = ({
   }
 
   const allDomains = ['All', ...new Set(appList.map(app => app.domain))];
-
+  const allTechnicalOwners = ['All', ...new Set(appList.map(app => app.technicalOwner))];
+ 
   return (
     <div className="dashboard-content">
       <SummaryCards applications={filteredApplications} />
@@ -53,6 +56,9 @@ const Dashboard = ({
         domainFilter={domainFilter}
         setDomainFilter={setDomainFilter}
         allDomains={allDomains}
+        technicalOwnerFilter={technicalOwnerFilter}
+        setTechnicalOwnerFilter = {setTechnicalOwnerFilter}  
+        allTechnicalOwners={allTechnicalOwners}
         filteredApplications={filteredApplications}
         onAddAppClick={onAddAppClick}
         onJSONUploadClick={onJSONUploadClick}
