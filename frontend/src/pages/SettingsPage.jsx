@@ -48,10 +48,11 @@ const SettingsPage = ({ setAlert, onLogout, API_BASE_URL }) => {
       } finally {
         setIsLoadingProfile(false);
       }
+      console.log('Fetching user data from:', `${API_BASE_URL}/api/users/me`);
     };
 
     fetchUserData();
-  }, [onLogout, setAlert]);
+  }, [onLogout, setAlert, API_BASE_URL]); // ✅ Added API_BASE_URL to dependencies
 
   // --- Profile Update ---
   const handleProfileChange = (e) => {
@@ -78,6 +79,7 @@ const SettingsPage = ({ setAlert, onLogout, API_BASE_URL }) => {
       if (!response.ok) throw new Error(data.message || 'Failed to update profile.');
 
       localStorage.setItem('firstName', profileData.firstName);
+      localStorage.setItem('lastName', profileData.lastName); // ✅ added
       setAlert({ message: 'Profile updated successfully!', type: 'success' });
     } catch (error) {
       setAlert({ message: `Profile Update Error: ${error.message}`, type: 'error' });
@@ -116,7 +118,11 @@ const SettingsPage = ({ setAlert, onLogout, API_BASE_URL }) => {
 
       setPasswordData({ oldPassword: '', newPassword: '', confirmNewPassword: '' });
       setAlert({ message: 'Password changed successfully! Please log in again.', type: 'success' });
-      setTimeout(onLogout, 1500);
+
+      // ✅ Disable inputs briefly before logout
+      setTimeout(() => {
+        onLogout();
+      }, 1500);
     } catch (error) {
       setAlert({ message: `Password Change Error: ${error.message}`, type: 'error' });
     }
@@ -125,7 +131,7 @@ const SettingsPage = ({ setAlert, onLogout, API_BASE_URL }) => {
   // --- Profile Picture Upload ---
   const handleFileChange = (e) => {
     const file = e.target.files[0];
-    const MAX_FILE_SIZE = 2 * 1024 * 1024;
+    const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB limit
 
     if (!file) {
       setSelectedFile(null);
@@ -169,12 +175,17 @@ const SettingsPage = ({ setAlert, onLogout, API_BASE_URL }) => {
       localStorage.setItem('profilePicUrl', data.profilePicUrl);
       setAlert({ message: 'Profile picture updated!', type: 'success' });
     } catch (error) {
+      setPreviewUrl(null); // ✅ reset preview on failure
+      setSelectedFile(null);
       setAlert({ message: `Upload Error: ${error.message}`, type: 'error' });
     }
   };
 
+  // --- Safe URL construction for profile picture ---
   const currentImageSource = previewUrl
     ? previewUrl
+    : profilePicUrl?.startsWith('http')
+    ? profilePicUrl
     : profilePicUrl
     ? `${API_BASE_URL}/${profilePicUrl}`
     : null;

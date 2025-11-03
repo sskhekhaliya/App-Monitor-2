@@ -13,7 +13,7 @@ import BulkUploadForm from './components/BulkUploadForm';
 import SettingsPage from './pages/SettingsPage';
 import './App.css';
 
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
 
 // For production, this should be set via environment variables (e.g., VITE_API_BASE_URL)
@@ -208,7 +208,7 @@ function App() {
       case 'settings':
         // NOTE: SettingsPage now relies on fetching its own initial data, but 
         // passing currentUser ensures immediate access to the first name.
-        return <SettingsPage setAlert={setAlert} onLogout={handleLogout} />; 
+        return <SettingsPage setAlert={setAlert} onLogout={handleLogout} API_BASE_URL={API_BASE_URL} />;
 
       case 'details':
         return <ApplicationDetailsPage app={selectedApp} onClose={() => { setPage('dashboard'); window.location.hash = 'dashboard'; }} />;
