@@ -19,27 +19,24 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_for_local_dev_only
 const TOKEN_EXPIRY = '1d';
 
 const allowedOrigins = [
-  'http://localhost:5173', // local dev (vite)
+  'http://localhost:5173',
   'http://localhost:3000',
-  'https://application-monitor.vercel.app', // change this to your actual vercel app
+  'https://application-monitor.vercel.app',
 ];
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      // allow requests with no origin (like mobile apps or curl)
       if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      } else {
-        return callback(new Error('CORS policy: Not allowed by server'), false);
-      }
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error('CORS policy: Not allowed by server'), false);
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
   })
 );
+
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -66,7 +63,7 @@ const checkBulkHealth = async (applications) =>
     })
   );
 
-// --- Multer Setup for Profile Uploads ---
+// --- Multer Setup ---
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, path.join(__dirname, 'uploads')),
   filename: (req, file, cb) =>
@@ -111,34 +108,34 @@ async function startServer() {
     db = client.db(dbName);
     usersCollection = db.collection('users');
 
+    // ✅ Create Default Admin if None Exists
+    const userCount = await usersCollection.countDocuments();
+    if (userCount === 0) {
+      const defaultAdmin = {
+        username: 'admin',
+        password: 'admin123', // plain text shown only in console
+        firstName: 'System',
+        lastName: 'Admin',
+      };
+
+      const hashedPassword = await bcrypt.hash(defaultAdmin.password, 10);
+      await usersCollection.insertOne({
+        username: defaultAdmin.username,
+        password: hashedPassword,
+        firstName: defaultAdmin.firstName,
+        lastName: defaultAdmin.lastName,
+        role: 'admin',
+      });
+
+      console.log('🧩 Default Admin Created');
+      console.log(`   Username: ${defaultAdmin.username}`);
+      console.log(`   Password: ${defaultAdmin.password}`);
+      console.log('----------------------------------------');
+    }
+
     // ---------------- AUTH ROUTES ----------------
 
-    app.post('/api/auth/signup', async (req, res) => {
-      try {
-        const { username, password, firstName, lastName } = req.body;
-        if (!username || !password || !firstName || !lastName)
-          return res.status(400).json({ message: 'Please enter all fields.' });
-
-        const userExists = await usersCollection.findOne({ username });
-        if (userExists)
-          return res.status(400).json({ message: 'User already exists.' });
-
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
-
-        await usersCollection.insertOne({
-          username,
-          password: hashedPassword,
-          firstName,
-          lastName,
-        });
-
-        res.status(201).json({ message: 'User created successfully!' });
-      } catch (err) {
-        console.error('Signup Error:', err);
-        res.status(500).json({ message: 'Server error during signup.' });
-      }
-    });
+    // ❌ Signup route removed
 
     app.post('/api/auth/login', async (req, res) => {
       try {
@@ -173,115 +170,87 @@ async function startServer() {
     // ---------------- APPLICATION ROUTES ----------------
 
     app.post('/api/applications/bulk', protect, async (req, res) => {
-  try {
-    const applications = req.body;
+      try {
+        const applications = req.body;
+        if (!Array.isArray(applications) || applications.length === 0)
+          return res.status(400).json({ message: 'Invalid or empty data for bulk upload.' });
 
-    if (!Array.isArray(applications) || applications.length === 0) {
-      return res.status(400).json({ message: 'Invalid or empty data for bulk upload.' });
-    }
+        const invalidItem = applications.find(app => !app.name || !app.status);
+        if (invalidItem)
+          return res.status(400).json({ message: 'Each application must have name and status.' });
 
-    // Optional: Validate fields for each item (basic check)
-    const invalidItem = applications.find(app => !app.name || !app.status);
-    if (invalidItem) {
-      return res.status(400).json({ message: 'Each application must have name and status.' });
-    }
-
-    const result = await db.collection('applications').insertMany(applications);
-
-    res.status(201).json({
-      message: `${result.insertedCount} applications uploaded successfully.`,
-      insertedIds: result.insertedIds,
+        const result = await db.collection('applications').insertMany(applications);
+        res.status(201).json({
+          message: `${result.insertedCount} applications uploaded successfully.`,
+          insertedIds: result.insertedIds,
+        });
+      } catch (err) {
+        console.error('Bulk upload error:', err);
+        res.status(500).json({ message: 'Error uploading applications in bulk.' });
+      }
     });
-  } catch (err) {
-    console.error('Bulk upload error:', err);
-    res.status(500).json({ message: 'Error uploading applications in bulk.' });
-  }
-});
 
-// Get all applications
-app.get('/api/applications', protect, async (req, res) => {
-  try {
-    const apps = await db.collection('applications').find({}).toArray();
-    const withStatus = await checkBulkHealth(apps);
-    res.json(withStatus);
-  } catch (err) {
-    res.status(500).json({ message: 'Error fetching applications' });
-  }
-});
+    app.get('/api/applications', protect, async (req, res) => {
+      try {
+        const apps = await db.collection('applications').find({}).toArray();
+        const withStatus = await checkBulkHealth(apps);
+        res.json(withStatus);
+      } catch (err) {
+        res.status(500).json({ message: 'Error fetching applications' });
+      }
+    });
 
-// Add new application
-app.post('/api/applications', protect, async (req, res) => {
-  try {
-    const newApp = req.body;
-    newApp.status = await checkApplicationHealth(newApp.prodUrl);
-    const result = await db.collection('applications').insertOne(newApp);
-    res.status(201).json({ _id: result.insertedId, message: 'Added successfully' });
-  } catch (err) {
-    res.status(500).json({ message: 'Error adding application' });
-  }
-});
+    app.post('/api/applications', protect, async (req, res) => {
+      try {
+        const newApp = req.body;
+        newApp.status = await checkApplicationHealth(newApp.prodUrl);
+        const result = await db.collection('applications').insertOne(newApp);
+        res.status(201).json({ _id: result.insertedId, message: 'Added successfully' });
+      } catch (err) {
+        res.status(500).json({ message: 'Error adding application' });
+      }
+    });
 
-// ✅ Update application
-// API Endpoint: Update an application
-        app.put('/api/applications/:id', async (req, res) => {
-    try {
+    app.put('/api/applications/:id', async (req, res) => {
+      try {
         const { id } = req.params;
-
-        // Use object destructuring to safely get updated data
-        // and prevent the _id from being included in the update
         const { _id, ...updatedData } = req.body;
 
-        console.log('Received ID:', id);
-        console.log('Updated Data:', updatedData);
+        if (!ObjectId.isValid(id))
+          return res.status(400).json({ message: 'Invalid ID format' });
 
-        // Check for a valid ObjectId
-        if (!ObjectId.isValid(id)) {
-            return res.status(400).json({ message: 'Invalid ID format' });
-        }
-
-        // Re-check status on update if the Prod URL changes
-        if (updatedData.prodUrl) {
-            updatedData.status = await checkApplicationHealth(updatedData.prodUrl);
-        }
+        if (updatedData.prodUrl)
+          updatedData.status = await checkApplicationHealth(updatedData.prodUrl);
 
         const result = await db.collection('applications').updateOne(
-            { _id: new ObjectId(id) },
-            { $set: updatedData }
+          { _id: new ObjectId(id) },
+          { $set: updatedData }
         );
 
-        if (result.matchedCount === 0) {
-            return res.status(404).json({ message: 'Application not found' });
-        }
+        if (result.matchedCount === 0)
+          return res.status(404).json({ message: 'Application not found' });
 
-        if (result.acknowledged) {
-            res.status(200).json({ message: 'Application updated successfully' });
-        } else {
-            res.status(500).json({ message: 'Failed to update application' });
-        }
-    } catch (err) {
+        res.status(200).json({ message: 'Application updated successfully' });
+      } catch (err) {
         console.error('Error updating application:', err);
         res.status(500).json({ message: 'Error updating application', error: err.message });
-    }
-});
-
-// ✅ Delete application
-app.delete('/api/applications/:id', protect, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const result = await db.collection('applications').deleteOne({
-      _id: new ObjectId(id),
+      }
     });
-    if (!result.deletedCount)
-      return res.status(404).json({ message: 'Application not found.' });
-    res.json({ message: 'Application deleted successfully.' });
-  } catch (err) {
-    res.status(500).json({ message: 'Error deleting application.' });
-  }
-});
+
+    app.delete('/api/applications/:id', protect, async (req, res) => {
+      try {
+        const { id } = req.params;
+        const result = await db.collection('applications').deleteOne({ _id: new ObjectId(id) });
+        if (!result.deletedCount)
+          return res.status(404).json({ message: 'Application not found.' });
+        res.json({ message: 'Application deleted successfully.' });
+      } catch (err) {
+        res.status(500).json({ message: 'Error deleting application.' });
+      }
+    });
 
     // ---------------- USER ROUTES ----------------
 
-    // ✅ Primary Route
     app.get('/api/users/me', protect, async (req, res) => {
       try {
         const user = await usersCollection.findOne(
@@ -291,12 +260,10 @@ app.delete('/api/applications/:id', protect, async (req, res) => {
         if (!user) return res.status(404).json({ message: 'User not found' });
         res.status(200).json(user);
       } catch (err) {
-        console.error('Error fetching user:', err);
         res.status(500).json({ message: 'Server error fetching user data.' });
       }
     });
 
-    // ✅ Alias route (singular)
     app.get('/api/user/me', protect, async (req, res) => {
       try {
         const user = await usersCollection.findOne(
@@ -306,12 +273,10 @@ app.delete('/api/applications/:id', protect, async (req, res) => {
         if (!user) return res.status(404).json({ message: 'User not found' });
         res.status(200).json(user);
       } catch (err) {
-        console.error('Error fetching user (alias):', err);
         res.status(500).json({ message: 'Server error fetching user data.' });
       }
     });
 
-    // Update profile names
     app.put('/api/users/profile', protect, async (req, res) => {
       try {
         const { firstName, lastName } = req.body;
@@ -331,7 +296,6 @@ app.delete('/api/applications/:id', protect, async (req, res) => {
       }
     });
 
-    // Change password
     app.put('/api/users/password', protect, async (req, res) => {
       try {
         const { oldPassword, newPassword } = req.body;
@@ -341,9 +305,7 @@ app.delete('/api/applications/:id', protect, async (req, res) => {
         const match = await bcrypt.compare(oldPassword, user.password);
         if (!match) return res.status(400).json({ message: 'Incorrect old password.' });
 
-        const salt = await bcrypt.genSalt(10);
-        const hashed = await bcrypt.hash(newPassword, salt);
-
+        const hashed = await bcrypt.hash(newPassword, 10);
         await usersCollection.updateOne(
           { _id: new ObjectId(req.user.id) },
           { $set: { password: hashed } }
@@ -354,11 +316,9 @@ app.delete('/api/applications/:id', protect, async (req, res) => {
       }
     });
 
-    // Upload profile picture
     app.put('/api/users/profile-picture', protect, upload.single('profilePic'), async (req, res) => {
       try {
         if (!req.file) return res.status(400).json({ message: 'No file uploaded.' });
-
         const profilePicUrl = `uploads/${req.file.filename}`;
         await usersCollection.updateOne(
           { _id: new ObjectId(req.user.id) },
@@ -366,15 +326,52 @@ app.delete('/api/applications/:id', protect, async (req, res) => {
         );
         res.json({ message: 'Profile picture updated!', profilePicUrl });
       } catch (err) {
-        console.error('Upload error:', err);
         res.status(500).json({ message: 'Error uploading profile picture.' });
       }
     });
 
+    // ---------------- ADMIN ROUTES ----------------
+
+// Check if username already exists
+app.get('/api/users/check-username/:username', protect, async (req, res) => {
+  try {
+    const { username } = req.params;
+    const existing = await usersCollection.findOne({ username });
+    res.json({ exists: !!existing });
+  } catch (err) {
+    res.status(500).json({ message: 'Error checking username.' });
+  }
+});
+
+// Add new admin
+app.post('/api/admins', protect, async (req, res) => {
+  try {
+    const { firstName, lastName, username, password } = req.body;
+    if (!firstName || !lastName || !username || !password)
+      return res.status(400).json({ message: 'All fields required.' });
+
+    const existing = await usersCollection.findOne({ username });
+    if (existing) return res.status(400).json({ message: 'Username already exists.' });
+
+    const hashed = await bcrypt.hash(password, 10);
+    await usersCollection.insertOne({
+      firstName,
+      lastName,
+      username,
+      password: hashed,
+      role: 'admin',
+    });
+
+    res.status(201).json({ message: 'Admin created successfully.' });
+  } catch (err) {
+    console.error('Error adding admin:', err);
+    res.status(500).json({ message: 'Server error adding admin.' });
+  }
+});
+
+
     // ---------------- START ----------------
-    app.listen(PORT, () =>
-      console.log(`🚀 Server running on port ${PORT}`)
-    );
+    app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
   } catch (err) {
     console.error('❌ MongoDB connection failed:', err);
     process.exit(1);
