@@ -8,8 +8,10 @@ import Alert from './components/Alert';
 import Dashboard from './components/Dashboard';
 import ApplicationsPage from './pages/ApplicationsPage';
 import ApplicationDetailsPage from './pages/ApplicationDetailsPage';
-import './App.css';
+import AuthPage from './pages/AuthPage';
 import BulkUploadForm from './components/BulkUploadForm';
+import SettingsPage from './pages/SettingsPage';
+import './App.css';
 
 function App() {
   const [showModal, setShowModal] = useState(false);
@@ -22,41 +24,109 @@ function App() {
   const [page, setPage] = useState(window.location.hash.substring(1) || 'dashboard');
   const [selectedApp, setSelectedApp] = useState(null);
   const [editingApp, setEditingApp] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
+  const [currentUser, setCurrentUser] = useState({ firstName: '', profilePicUrl: '' });
 
-  useEffect(() => {
-    const handleHashChange = () => {
-      setPage(window.location.hash.substring(1) || 'dashboard');
+  // --- TOKEN HELPER ---
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('token');
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
     };
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
+  };
 
+  // --- LOGOUT FUNCTION ---
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('username');
+    setIsAuthenticated(false);
+    setPage('auth');
+    setAlert({ message: 'Logged out successfully.', type: 'success' });
+  };
+
+  // --- FETCH USER PROFILE (NEW) ---
+  const fetchUserProfile = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await fetch('http://localhost:3000/api/users/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.status === 401) {
+        handleLogout();
+        throw new Error('Session expired. Please log in again.');
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch user profile.');
+      }
+
+      const userData = await response.json();
+
+      // Adjust key names based on your backend
+      setCurrentUser({
+        firstName: userData.firstName || userData.name?.split(' ')[0] || 'User',
+        profilePicUrl: userData.profilePicUrl || userData.photo || '',
+      });
+    } catch (err) {
+      console.error('Error fetching user profile:', err);
+    }
+  };
+
+  // --- LOGIN SUCCESS HANDLER ---
+  const handleLoginSuccess = () => {
+    setIsAuthenticated(true);
+    setPage('dashboard');
+    window.location.hash = 'dashboard';
+    fetchApplications();
+    fetchUserProfile(); // ✅ Fetch user info on login
+  };
+
+  // --- FETCH APPLICATIONS ---
   const fetchApplications = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch('http://localhost:3000/api/applications');
+      const token = localStorage.getItem('token');
+      if (!token && isAuthenticated) return;
+
+      const response = await fetch('http://localhost:3000/api/applications', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.status === 401) {
+        handleLogout();
+        throw new Error('Session expired. Please log in again.');
+      }
+
       if (!response.ok) {
         throw new Error('Failed to fetch applications');
       }
+
       const data = await response.json();
       setApplications(data);
     } catch (err) {
-      setError(err.message);
+      if (err.message !== 'Session expired. Please log in again.') {
+        setError(err.message);
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
+  // --- CRUD HANDLERS ---
   const handleAddApplication = async (newApp) => {
     try {
       const response = await fetch('http://localhost:3000/api/applications', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(newApp),
       });
+
+      if (response.status === 401) return handleLogout();
 
       if (response.ok) {
         setAlert({ message: 'Application added successfully!', type: 'success' });
@@ -75,11 +145,11 @@ function App() {
     try {
       const response = await fetch(`http://localhost:3000/api/applications/${updatedApp._id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(updatedApp),
       });
+
+      if (response.status === 401) return handleLogout();
 
       if (response.ok) {
         setAlert({ message: 'Application updated successfully!', type: 'success' });
@@ -98,7 +168,11 @@ function App() {
     try {
       const response = await fetch(`http://localhost:3000/api/applications/${appId}`, {
         method: 'DELETE',
+        headers: { Authorization: getAuthHeaders().Authorization },
       });
+
+      if (response.status === 401) return handleLogout();
+
       if (response.ok) {
         setAlert({ message: 'Application deleted successfully!', type: 'success' });
         fetchApplications();
@@ -111,21 +185,16 @@ function App() {
     }
   };
 
-  const handleAppClick = (app) => {
-    setSelectedApp(app);
-    window.location.hash = 'details';
-    setPage('details');
-  };
-
   const handleBulkUpload = async (data, fileType) => {
     try {
       const response = await fetch('http://localhost:3000/api/applications/bulk', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(data),
       });
+
+      if (response.status === 401) return handleLogout();
+
       const result = await response.json();
       if (response.ok) {
         setAlert({ message: result.message, type: 'success' });
@@ -138,69 +207,166 @@ function App() {
     }
   };
 
+  // --- MODAL CLICK HANDLERS ---
+  const onAddAppClick = () => {
+    setEditingApp(null);
+    setShowModal(true);
+    setModalContent('form');
+  };
+
+  const onJSONUploadClick = () => {
+    setModalContent('json');
+    setShowModal(true);
+  };
+
+  const onExcelUploadClick = () => {
+    setModalContent('excel');
+    setShowModal(true);
+  };
+
+  const handleAppClick = (app) => {
+    setSelectedApp(app);
+    window.location.hash = 'details';
+    setPage('details');
+  };
+
+  // --- INITIAL DATA FETCH ---
   useEffect(() => {
-    fetchApplications();
+    if (isAuthenticated) {
+      fetchApplications();
+      fetchUserProfile(); // ✅ Fetch user data when page reloads and token exists
+    }
+  }, [isAuthenticated]);
+
+  // --- HASH CHANGE HANDLER ---
+  useEffect(() => {
+    const handleHashChange = () => {
+      setPage(window.location.hash.substring(1) || 'dashboard');
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
+  // --- PAGE RENDER ---
   const renderPage = () => {
+    if (!isAuthenticated) {
+      return <AuthPage onLoginSuccess={handleLoginSuccess} setErrorAlert={setAlert} />;
+    }
+
     switch (page) {
       case 'dashboard':
-        return <Dashboard
-          applications={applications}
-          isLoading={isLoading}
-          error={error}
-          onAppClick={handleAppClick}
-          onAddAppClick={() => { setEditingApp(null); setShowModal(true); setModalContent('form'); }}
-          onExcelUploadClick={() => { setShowModal(true); setModalContent('excel'); }}
-        />;
+        return (
+          <Dashboard
+            applications={applications}
+            isLoading={isLoading}
+            error={error}
+            onAppClick={handleAppClick}
+            onAddAppClick={onAddAppClick}
+            onJSONUploadClick={onJSONUploadClick}
+            onExcelUploadClick={onExcelUploadClick}
+          />
+        );
+
       case 'applications':
-        return <ApplicationsPage
-          applications={applications}
-          searchTerm={searchTerm}
-          onAppClick={handleAppClick}
-          onEdit={(app) => {
-            setEditingApp(app);
-            setShowModal(true);
-            setModalContent('form');
-          }}
-          onDelete={handleDeleteApplication}
-        />;
+        return (
+          <ApplicationsPage
+            applications={applications}
+            searchTerm={searchTerm}
+            onAppClick={handleAppClick}
+            onEdit={(app) => {
+              setEditingApp(app);
+              setShowModal(true);
+              setModalContent('form');
+            }}
+            onDelete={handleDeleteApplication}
+          />
+        );
+
+      case 'settings':
+        return <SettingsPage setAlert={setAlert} onLogout={handleLogout} />;
+
       case 'details':
-        return <ApplicationDetailsPage app={selectedApp} onClose={() => { setPage('dashboard'); window.location.hash = 'dashboard'; }} />;
+        return (
+          <ApplicationDetailsPage
+            app={selectedApp}
+            onClose={() => {
+              setPage('dashboard');
+              window.location.hash = 'dashboard';
+            }}
+          />
+        );
+
       default:
-        return <Dashboard applications={applications} isLoading={isLoading} error={error} searchTerm={searchTerm} onAppClick={handleAppClick} onAddAppClick={() => { setEditingApp(null); setShowModal(true); setModalContent('form'); }} onJSONUploadClick={() => { setShowModal(true); setModalContent('json'); }} onExcelUploadClick={() => { setShowModal(true); setModalContent('excel'); }}/>;
+        return (
+          <Dashboard
+            applications={applications}
+            isLoading={isLoading}
+            error={error}
+            searchTerm={searchTerm}
+            onAppClick={handleAppClick}
+            onAddAppClick={onAddAppClick}
+            onJSONUploadClick={onJSONUploadClick}
+            onExcelUploadClick={onExcelUploadClick}
+          />
+        );
     }
   };
 
   return (
     <div className="app-layout">
-      <Sidebar
-        onAddAppClick={() => { setEditingApp(null); setShowModal(true); setModalContent('form'); }}
-        onExcelUploadClick={() => { setShowModal(true); setModalContent('excel'); }}
-        page={page}
-        setPage={setPage}
-      />
+      {/* Sidebar only if authenticated */}
+      {isAuthenticated && (
+        <Sidebar
+          onAddAppClick={onAddAppClick}
+          onJSONUploadClick={onJSONUploadClick}
+          onExcelUploadClick={onExcelUploadClick}
+          page={page}
+          setPage={setPage}
+          onLogout={handleLogout}
+        />
+      )}
+
       <div className="main-content">
-        <TopBar searchTerm={searchTerm} onSearchChange={setSearchTerm} />
-        {renderPage()}
-      </div>
-      <Modal show={showModal} onClose={() => setShowModal(false)}>
-        {modalContent === 'form' ? (
-          <AdminForm
-            onAddApplication={handleAddApplication}
-            onEditApplication={handleEditApplication}
-            onClose={() => setShowModal(false)}
-            editingApp={editingApp}
-          />
-        ) : (
-          <BulkUploadForm
-            onUpload={handleBulkUpload}
-            onClose={() => setShowModal(false)}
-            fileType={modalContent}
+        {/* TopBar only if authenticated */}
+        {isAuthenticated && (
+          <TopBar
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            onLogout={handleLogout}
+            firstName={currentUser.firstName}
+            profilePicUrl={currentUser.profilePicUrl}
           />
         )}
-      </Modal>
-      <Alert message={alert.message} type={alert.type} onClose={() => setAlert({ message: '', type: '' })} />
+
+        {renderPage()}
+      </div>
+
+      {/* Modal */}
+      {isAuthenticated && (
+        <Modal show={showModal} onClose={() => setShowModal(false)}>
+          {modalContent === 'form' ? (
+            <AdminForm
+              onAddApplication={handleAddApplication}
+              onEditApplication={handleEditApplication}
+              onClose={() => setShowModal(false)}
+              editingApp={editingApp}
+            />
+          ) : (
+            <BulkUploadForm
+              onUpload={handleBulkUpload}
+              onClose={() => setShowModal(false)}
+              fileType={modalContent}
+            />
+          )}
+        </Modal>
+      )}
+
+      {/* Alert */}
+      <Alert
+        message={alert.message}
+        type={alert.type}
+        onClose={() => setAlert({ message: '', type: '' })}
+      />
     </div>
   );
 }

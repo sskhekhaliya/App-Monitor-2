@@ -14,7 +14,9 @@ function Sidebar({ onAddAppClick, page, setPage, onJSONUploadClick, onExcelUploa
   return (
     <div className="sidebar">
       <div className="logo-section">
+        <a href="/" >
         <h3 className="app-logo"><MdDns /> App Monitor</h3>
+        </a>
       </div>
       <nav className="main-nav">
         <ul>
