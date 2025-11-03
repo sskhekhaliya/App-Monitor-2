@@ -15,7 +15,8 @@ import './App.css';
 
 // Define the API base URL for both local and live deployment
 // NOTE: For local testing, ensure your backend is on http://localhost:3000
-const API_BASE_URL = 'http://localhost:3000'; 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+
 // For production, this should be set via environment variables (e.g., VITE_API_BASE_URL)
 
 function App() {
