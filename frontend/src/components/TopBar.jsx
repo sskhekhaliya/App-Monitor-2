@@ -4,7 +4,7 @@ import './TopBar.css';
 import { MdAccountCircle, MdLogout, MdSettings } from 'react-icons/md';
 
 // --- UPDATED: Accept profilePicUrl and firstName as props ---
-function TopBar({ searchTerm, onSearchChange, onLogout, profilePicUrl, firstName, baseUrl }) { 
+function TopBar({ searchTerm, onSearchChange, onLogout, profilePicUrl, firstName, API_BASE_URL }) { 
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null); 
   
@@ -13,7 +13,7 @@ function TopBar({ searchTerm, onSearchChange, onLogout, profilePicUrl, firstName
   
   // FIX: Construct the full server path directly from the prop
   const profilePicSource = profilePicUrl 
-    ? `${baseUrl}/${profilePicUrl}` 
+    ? `${API_BASE_URL}/${profilePicUrl}` 
     : null; 
 
   // --- Effect to handle clicks outside the dropdown (Unchanged) ---

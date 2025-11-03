@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import './SettingsPage.css';
 import { MdAccountCircle, MdSave } from 'react-icons/md';
 
-const SettingsPage = ({ setAlert, onLogout, baseUrl }) => {
+const SettingsPage = ({ setAlert, onLogout, API_BASE_URL }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [profilePicUrl, setProfilePicUrl] = useState('');
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -25,7 +25,7 @@ const SettingsPage = ({ setAlert, onLogout, baseUrl }) => {
     const fetchUserData = async () => {
       setIsLoadingProfile(true);
       try {
-        const response = await fetch(`${baseUrl}/api/users/me`, {
+        const response = await fetch(`${API_BASE_URL}/api/users/me`, {
           headers: getAuthHeaders(),
         });
 
@@ -62,7 +62,7 @@ const SettingsPage = ({ setAlert, onLogout, baseUrl }) => {
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(`${baseUrl}/api/users/profile`, {
+      const response = await fetch(`${API_BASE_URL}/api/users/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -99,7 +99,7 @@ const SettingsPage = ({ setAlert, onLogout, baseUrl }) => {
     }
 
     try {
-      const response = await fetch(`${baseUrl}/api/users/password`, {
+      const response = await fetch(`${API_BASE_URL}/api/users/password`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -154,7 +154,7 @@ const SettingsPage = ({ setAlert, onLogout, baseUrl }) => {
     formData.append('profilePic', selectedFile);
 
     try {
-      const response = await fetch(`${baseUrl}/api/users/profile-picture`, {
+      const response = await fetch(`${API_BASE_URL}/api/users/profile-picture`, {
         method: 'PUT',
         headers: getAuthHeaders(),
         body: formData,
@@ -176,7 +176,7 @@ const SettingsPage = ({ setAlert, onLogout, baseUrl }) => {
   const currentImageSource = previewUrl
     ? previewUrl
     : profilePicUrl
-    ? `${baseUrl}/${profilePicUrl}`
+    ? `${API_BASE_URL}/${profilePicUrl}`
     : null;
 
   // --- Render ---
