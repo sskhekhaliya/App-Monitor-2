@@ -8,7 +8,7 @@ const multer = require('multer');
 const path = require('path');
 
 const app = express();
-const port = 3000;
+const PORT = process.env.PORT || 3000;
 
 // --- Database Config ---
 const mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017';
@@ -266,7 +266,7 @@ async function startServer() {
 
     // ---------------- START ----------------
     app.listen(port, () =>
-      console.log(`🚀 Server running on http://localhost:${port}`)
+      console.log(`🚀 Server running on port ${PORT}`)
     );
   } catch (err) {
     console.error('❌ MongoDB connection failed:', err);
