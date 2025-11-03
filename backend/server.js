@@ -151,26 +151,88 @@ async function startServer() {
 
     // ---------------- APPLICATION ROUTES ----------------
 
-    app.get('/api/applications', protect, async (req, res) => {
-      try {
-        const apps = await db.collection('applications').find({}).toArray();
-        const withStatus = await checkBulkHealth(apps);
-        res.json(withStatus);
-      } catch (err) {
-        res.status(500).json({ message: 'Error fetching applications' });
-      }
-    });
+    // ---------------- APPLICATION ROUTES ----------------
 
-    app.post('/api/applications', protect, async (req, res) => {
-      try {
-        const newApp = req.body;
-        newApp.status = await checkApplicationHealth(newApp.prodUrl);
-        const result = await db.collection('applications').insertOne(newApp);
-        res.status(201).json({ _id: result.insertedId, message: 'Added successfully' });
-      } catch (err) {
-        res.status(500).json({ message: 'Error adding application' });
-      }
+// Get all applications
+app.get('/api/applications', protect, async (req, res) => {
+  try {
+    const apps = await db.collection('applications').find({}).toArray();
+    const withStatus = await checkBulkHealth(apps);
+    res.json(withStatus);
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching applications' });
+  }
+});
+
+// Add new application
+app.post('/api/applications', protect, async (req, res) => {
+  try {
+    const newApp = req.body;
+    newApp.status = await checkApplicationHealth(newApp.prodUrl);
+    const result = await db.collection('applications').insertOne(newApp);
+    res.status(201).json({ _id: result.insertedId, message: 'Added successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Error adding application' });
+  }
+});
+
+// ✅ Update application
+// API Endpoint: Update an application
+        app.put('/api/applications/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Use object destructuring to safely get updated data
+        // and prevent the _id from being included in the update
+        const { _id, ...updatedData } = req.body;
+
+        console.log('Received ID:', id);
+        console.log('Updated Data:', updatedData);
+
+        // Check for a valid ObjectId
+        if (!ObjectId.isValid(id)) {
+            return res.status(400).json({ message: 'Invalid ID format' });
+        }
+
+        // Re-check status on update if the Prod URL changes
+        if (updatedData.prodUrl) {
+            updatedData.status = await checkApplicationHealth(updatedData.prodUrl);
+        }
+
+        const result = await db.collection('applications').updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updatedData }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ message: 'Application not found' });
+        }
+
+        if (result.acknowledged) {
+            res.status(200).json({ message: 'Application updated successfully' });
+        } else {
+            res.status(500).json({ message: 'Failed to update application' });
+        }
+    } catch (err) {
+        console.error('Error updating application:', err);
+        res.status(500).json({ message: 'Error updating application', error: err.message });
+    }
+});
+
+// ✅ Delete application
+app.delete('/api/applications/:id', protect, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await db.collection('applications').deleteOne({
+      _id: new ObjectId(id),
     });
+    if (!result.deletedCount)
+      return res.status(404).json({ message: 'Application not found.' });
+    res.json({ message: 'Application deleted successfully.' });
+  } catch (err) {
+    res.status(500).json({ message: 'Error deleting application.' });
+  }
+});
 
     // ---------------- USER ROUTES ----------------
 

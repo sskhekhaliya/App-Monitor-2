@@ -1,5 +1,5 @@
 // src/App.jsx
-import React, { useState, useEffect, useCallback } from 'react'; // Added useCallback
+import React, { useState, useEffect, useCallback } from 'react';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
 import Modal from './components/Modal';
@@ -13,10 +13,8 @@ import BulkUploadForm from './components/BulkUploadForm';
 import SettingsPage from './pages/SettingsPage';
 import './App.css';
 
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
-
-
-// For production, this should be set via environment variables (e.g., VITE_API_BASE_URL)
+// ✅ Use environment variable or fallback
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
 function App() {
   const [showModal, setShowModal] = useState(false);
@@ -30,140 +28,222 @@ function App() {
   const [selectedApp, setSelectedApp] = useState(null);
   const [editingApp, setEditingApp] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
-  
-  // STATE TO HOLD LIVE USER PROFILE DATA
   const [currentUser, setCurrentUser] = useState({ firstName: '', profilePicUrl: '' });
 
-  // --- LOGOUT FUNCTION ---
+  // --- Logout ---
   const handleLogout = useCallback(() => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('username');
-    localStorage.removeItem('firstName');
-    localStorage.removeItem('profilePicUrl'); // Clear profile pic URL from storage
+    ['token', 'username', 'firstName', 'profilePicUrl'].forEach(key => localStorage.removeItem(key));
     setIsAuthenticated(false);
-    setCurrentUser({ firstName: '', profilePicUrl: '' }); // Clear profile state
+    setCurrentUser({ firstName: '', profilePicUrl: '' });
     setPage('auth');
     setAlert({ message: 'Logged out successfully.', type: 'success' });
   }, []);
 
-  // --- TOKEN HELPER (Uses useCallback for stability) ---
-  const getAuthHeaders = useCallback(() => {
+  // --- Auth Fetch Helper ---
+  const authFetch = useCallback(
+  async (url, options = {}) => {
     const token = localStorage.getItem('token');
-    return {
+    if (!token) throw new Error('User not authenticated. Please log in again.');
+
+    // Safely extract any custom headers passed in options
+    const { headers: customHeaders = {}, ...restOptions } = options;
+
+    // Use the Headers API to avoid malformed header objects
+    const headers = new Headers({
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    };
-  }, []);
+      Authorization: `Bearer ${token}`,
+      ...customHeaders,
+    });
 
-  // --- FETCH USER PROFILE (NEW) ---
-  const fetchUserProfile = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/user/me`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-      });
+      const response = await fetch(url, { ...restOptions, headers });
 
+      // If unauthorized, force logout and throw so callers can handle it
       if (response.status === 401) {
         handleLogout();
-        return;
+        throw new Error('Session expired. Please log in again.');
       }
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch user profile.');
-      }
+      return response;
+    } catch (err) {
+      // Re-throw with a clearer message for upstream handlers
+      throw new Error(err.message || 'Network error during request.');
+    }
+  },
+  [handleLogout]
+);
 
+  // --- Fetch User Profile ---
+  const fetchUserProfile = useCallback(async () => {
+    try {
+      const response = await authFetch(`${API_BASE_URL}/api/user/me`);
       const userData = await response.json();
 
-      // Update state with fetched data
       setCurrentUser({
         firstName: userData.firstName || 'User',
-        profilePicUrl: userData.profilePicUrl || null,
+        profilePicUrl: userData.profilePicUrl || '',
       });
 
-      // Update localStorage for consistency (especially for TopBar/Settings)
       localStorage.setItem('firstName', userData.firstName || 'User');
       localStorage.setItem('profilePicUrl', userData.profilePicUrl || '');
-
     } catch (err) {
       console.error('Error fetching user profile:', err);
     }
-  }, [handleLogout]);
+  }, [authFetch]);
 
-  // --- FETCH APPLICATIONS ---
+  // --- Fetch Applications ---
   const fetchApplications = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/applications`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-      });
-
-      if (response.status === 401) {
-        handleLogout();
-        return;
-      }
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch applications');
-      }
-
+      const response = await authFetch(`${API_BASE_URL}/api/applications`);
       const data = await response.json();
       setApplications(data);
     } catch (err) {
-      if (err.message !== 'Session expired. Please log in again.') {
-        setError(err.message);
-      }
+      setError(err.message);
     } finally {
       setIsLoading(false);
     }
-  }, [handleLogout]);
+  }, [authFetch]);
 
-  // --- LOGIN SUCCESS HANDLER ---
+  // --- Login Success ---
   const handleLoginSuccess = () => {
     setIsAuthenticated(true);
     setPage('dashboard');
     window.location.hash = 'dashboard';
     fetchApplications();
-    fetchUserProfile(); // ✅ Fetch user info on login
+    fetchUserProfile();
   };
 
-  // --- CRUD HANDLERS (Simplified for brevity, assuming full logic is correct) ---
-  const handleAddApplication = async (newApp) => { /* ... API logic ... */ };
-  const handleEditApplication = async (updatedApp) => { /* ... API logic ... */ };
-  const handleDeleteApplication = async (appId) => { /* ... API logic ... */ };
-  const handleBulkUpload = async (data, fileType) => { /* ... API logic ... */ };
+  // --- Add Application ---
+  const handleAddApplication = async (newApp) => {
+    try {
+      const response = await authFetch(`${API_BASE_URL}/api/applications`, {
+        method: 'POST',
+        body: JSON.stringify(newApp),
+      });
 
-  // --- MODAL CLICK HANDLERS ---
+      if (!response.ok) throw new Error('Failed to add application.');
+
+      setAlert({ message: 'Application added successfully!', type: 'success' });
+      fetchApplications();
+      setShowModal(false);
+    } catch (error) {
+      setAlert({ message: `Error: ${error.message}`, type: 'error' });
+    }
+  };
+
+  // --- Edit Application ---
+  const handleEditApplication = async (updatedApp) => {
+  try {
+    // Ensure _id exists
+    if (!updatedApp?._id) throw new Error('Application id missing.');
+
+    const response = await authFetch(`${API_BASE_URL}/api/applications/${updatedApp._id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updatedApp),
+    });
+
+    // handle non-2xx responses
+    if (!response.ok) {
+      // Try to parse error; fallback to status text
+      const errorData = await safeParseJson(response);
+      throw new Error(errorData?.message || response.statusText || 'Failed to update application.');
+    }
+
+    const updated = await response.json();
+    setApplications((prev) => prev.map((a) => (a._id === updated._id ? updated : a)));
+    setAlert({ message: 'Application updated successfully!', type: 'success' });
+    fetchApplications();
+    setShowModal(false);
+  } catch (error) {
+    setAlert({ message: `Error: ${error.message}`, type: 'error' });
+  }
+};
+
+  // --- Delete Application ---
+  const handleDeleteApplication = async (appId) => {
+  if (!appId) return setAlert({ message: 'Invalid application id.', type: 'error' });
+
+  if (!window.confirm('Are you sure you want to delete this application?')) return;
+
+  try {
+    const response = await authFetch(`${API_BASE_URL}/api/applications/${appId}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      const errorData = await safeParseJson(response);
+      throw new Error(errorData?.message || response.statusText || 'Failed to delete application.');
+    }
+
+    setApplications((prev) => prev.filter((app) => app._id !== appId));
+    setAlert({ message: 'Application deleted successfully!', type: 'success' });
+    fetchApplications();
+  } catch (error) {
+    setAlert({ message: `Error: ${error.message}`, type: 'error' });
+  }
+};
+
+async function safeParseJson(response) {
+  try {
+    const text = await response.text();
+    if (!text) return null;
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+  // --- Bulk Upload ---
+  const handleBulkUpload = async (data, fileType) => {
+    try {
+      const response = await authFetch(`${API_BASE_URL}/api/applications/bulk`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || 'Failed to complete bulk upload.');
+
+      setAlert({ message: result.message, type: 'success' });
+      fetchApplications();
+    } catch (error) {
+      setAlert({ message: `Error: ${error.message}`, type: 'error' });
+    }
+  };
+
+  // --- Modal Handlers ---
   const onAddAppClick = () => {
     setEditingApp(null);
     setShowModal(true);
     setModalContent('form');
   };
-
   const onJSONUploadClick = () => {
     setModalContent('json');
     setShowModal(true);
   };
-
   const onExcelUploadClick = () => {
     setModalContent('excel');
     setShowModal(true);
   };
 
+  // --- App Click ---
   const handleAppClick = (app) => {
     setSelectedApp(app);
     window.location.hash = 'details';
     setPage('details');
   };
 
-  // --- INITIAL DATA FETCH ---
+  // --- Initial Fetch ---
   useEffect(() => {
     if (isAuthenticated) {
       fetchApplications();
-      fetchUserProfile(); // ✅ Fetch user profile on initial load
+      fetchUserProfile();
     }
   }, [isAuthenticated, fetchApplications, fetchUserProfile]);
 
-  // --- HASH CHANGE HANDLER (Unchanged) ---
+  // --- URL Hash Navigation ---
   useEffect(() => {
     const handleHashChange = () => {
       setPage(window.location.hash.substring(1) || 'dashboard');
@@ -172,10 +252,16 @@ function App() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  // --- PAGE RENDER ---
+  // --- Render Page ---
   const renderPage = () => {
     if (!isAuthenticated) {
-      return <AuthPage onLoginSuccess={handleLoginSuccess} setErrorAlert={setAlert} API_BASE_URL={API_BASE_URL} />;
+      return (
+        <AuthPage
+          onLoginSuccess={handleLoginSuccess}
+          setErrorAlert={setAlert}
+          API_BASE_URL={API_BASE_URL}
+        />
+      );
     }
 
     const dashboardProps = {
@@ -192,27 +278,38 @@ function App() {
     switch (page) {
       case 'dashboard':
         return <Dashboard {...dashboardProps} />;
-
       case 'applications':
-        return <ApplicationsPage
-          applications={applications}
-          searchTerm={searchTerm}
-          onAppClick={handleAppClick}
-          onEdit={(app) => {
-            setEditingApp(app);
-            setShowModal(true);
-            setModalContent('form');
-          }}
-          onDelete={handleDeleteApplication}
-        />;
+        return (
+          <ApplicationsPage
+            applications={applications}
+            searchTerm={searchTerm}
+            onAppClick={handleAppClick}
+            onEdit={(app) => {
+              setEditingApp(app);
+              setShowModal(true);
+              setModalContent('form');
+            }}
+            onDelete={handleDeleteApplication}
+          />
+        );
       case 'settings':
-        // NOTE: SettingsPage now relies on fetching its own initial data, but 
-        // passing currentUser ensures immediate access to the first name.
-        return <SettingsPage setAlert={setAlert} onLogout={handleLogout} API_BASE_URL={API_BASE_URL} />;
-
+        return (
+          <SettingsPage
+            setAlert={setAlert}
+            onLogout={handleLogout}
+            API_BASE_URL={API_BASE_URL}
+          />
+        );
       case 'details':
-        return <ApplicationDetailsPage app={selectedApp} onClose={() => { setPage('dashboard'); window.location.hash = 'dashboard'; }} />;
-
+        return (
+          <ApplicationDetailsPage
+            app={selectedApp}
+            onClose={() => {
+              setPage('dashboard');
+              window.location.hash = 'dashboard';
+            }}
+          />
+        );
       default:
         return <Dashboard {...dashboardProps} />;
     }
@@ -220,7 +317,6 @@ function App() {
 
   return (
     <div className="app-layout">
-      {/* Sidebar only if authenticated */}
       {isAuthenticated && (
         <Sidebar
           onAddAppClick={onAddAppClick}
@@ -233,10 +329,9 @@ function App() {
       )}
 
       <div className="main-content">
-        {/* TopBar receives live currentUser state */}
         {isAuthenticated && (
           <TopBar
-          API_BASE_URL={API_BASE_URL}
+            API_BASE_URL={API_BASE_URL}
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
             onLogout={handleLogout}
@@ -244,11 +339,9 @@ function App() {
             profilePicUrl={currentUser.profilePicUrl}
           />
         )}
-
         {renderPage()}
       </div>
 
-      {/* Modal only if authenticated */}
       {isAuthenticated && (
         <Modal show={showModal} onClose={() => setShowModal(false)}>
           {modalContent === 'form' ? (
@@ -268,7 +361,6 @@ function App() {
         </Modal>
       )}
 
-      {/* Alert */}
       <Alert
         message={alert.message}
         type={alert.type}
