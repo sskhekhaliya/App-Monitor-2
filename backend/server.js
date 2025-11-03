@@ -18,7 +18,28 @@ const dbName = 'dashboardDB';
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_for_local_dev_only';
 const TOKEN_EXPIRY = '1d';
 
-app.use(cors());
+const allowedOrigins = [
+  'http://localhost:5173', // local dev (vite)
+  'http://localhost:3000',
+  'https://application-monitor.vercel.app', // change this to your actual vercel app
+];
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // allow requests with no origin (like mobile apps or curl)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      } else {
+        return callback(new Error('CORS policy: Not allowed by server'), false);
+      }
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
