@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import './AuthPage.css'; // We'll define simple CSS here
 
-const AuthPage = ({ onLoginSuccess, setErrorAlert }) => {
+const AuthPage = ({ onLoginSuccess, setErrorAlert, baseUrl }) => {
     const [isLogin, setIsLogin] = useState(true); // Toggle between Login/Signup
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -19,7 +19,7 @@ const AuthPage = ({ onLoginSuccess, setErrorAlert }) => {
             : { username, password, firstName, lastName };
 
         try {
-            const response = await fetch(`http://localhost:3000${endpoint}`, {
+            const response = await fetch(`${baseUrl}${endpoint}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),

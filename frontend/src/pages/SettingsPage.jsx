@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import './SettingsPage.css';
 import { MdAccountCircle, MdSave } from 'react-icons/md';
 
-const SettingsPage = ({ setAlert, onLogout }) => {
+const SettingsPage = ({ setAlert, onLogout, baseUrl }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [profilePicUrl, setProfilePicUrl] = useState('');
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -25,7 +25,7 @@ const SettingsPage = ({ setAlert, onLogout }) => {
     const fetchUserData = async () => {
       setIsLoadingProfile(true);
       try {
-        const response = await fetch('http://localhost:3000/api/users/me', {
+        const response = await fetch(`${baseUrl}/api/users/me`, {
           headers: getAuthHeaders(),
         });
 
@@ -62,7 +62,7 @@ const SettingsPage = ({ setAlert, onLogout }) => {
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:3000/api/users/profile', {
+      const response = await fetch(`${baseUrl}/api/users/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -99,7 +99,7 @@ const SettingsPage = ({ setAlert, onLogout }) => {
     }
 
     try {
-      const response = await fetch('http://localhost:3000/api/users/password', {
+      const response = await fetch(`${baseUrl}/api/users/password`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -154,7 +154,7 @@ const SettingsPage = ({ setAlert, onLogout }) => {
     formData.append('profilePic', selectedFile);
 
     try {
-      const response = await fetch('http://localhost:3000/api/users/profile-picture', {
+      const response = await fetch(`${baseUrl}/api/users/profile-picture`, {
         method: 'PUT',
         headers: getAuthHeaders(),
         body: formData,
@@ -176,7 +176,7 @@ const SettingsPage = ({ setAlert, onLogout }) => {
   const currentImageSource = previewUrl
     ? previewUrl
     : profilePicUrl
-    ? `http://localhost:3000/${profilePicUrl}`
+    ? `${baseUrl}/${profilePicUrl}`
     : null;
 
   // --- Render ---

@@ -13,8 +13,6 @@ import BulkUploadForm from './components/BulkUploadForm';
 import SettingsPage from './pages/SettingsPage';
 import './App.css';
 
-// Define the API base URL for both local and live deployment
-// NOTE: For local testing, ensure your backend is on http://localhost:3000
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
 // For production, this should be set via environment variables (e.g., VITE_API_BASE_URL)
@@ -176,7 +174,7 @@ function App() {
   // --- PAGE RENDER ---
   const renderPage = () => {
     if (!isAuthenticated) {
-      return <AuthPage onLoginSuccess={handleLoginSuccess} setErrorAlert={setAlert} />;
+      return <AuthPage onLoginSuccess={handleLoginSuccess} setErrorAlert={setAlert} baseUrl={API_BASE_URL} />;
     }
 
     const dashboardProps = {
@@ -237,6 +235,7 @@ function App() {
         {/* TopBar receives live currentUser state */}
         {isAuthenticated && (
           <TopBar
+          baseUrl={API_BASE_URL}
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
             onLogout={handleLogout}
