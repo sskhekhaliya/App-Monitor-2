@@ -196,22 +196,32 @@ async function safeParseJson(response) {
 }
 
   // --- Bulk Upload ---
-  const handleBulkUpload = async (data, fileType) => {
-    try {
-      const response = await authFetch(`${API_BASE_URL}/api/applications/bulk`, {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
+ const handleBulkUpload = async (data, fileType) => {
+  try {
+    const token = localStorage.getItem('token');
 
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.message || 'Failed to complete bulk upload.');
+    const response = await fetch(`${API_BASE_URL}/api/applications/bulk`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`, // ✅ Added
+      },
+      body: JSON.stringify(data),
+    });
 
+    const result = await response.json();
+
+    if (response.ok) {
       setAlert({ message: result.message, type: 'success' });
       fetchApplications();
-    } catch (error) {
-      setAlert({ message: `Error: ${error.message}`, type: 'error' });
+    } else {
+      throw new Error(result.message || 'Failed to complete bulk upload.');
     }
-  };
+  } catch (error) {
+    setAlert({ message: `Error: ${error.message}`, type: 'error' });
+  }
+};
+
 
   // --- Modal Handlers ---
   const onAddAppClick = () => {

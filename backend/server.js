@@ -172,7 +172,31 @@ async function startServer() {
 
     // ---------------- APPLICATION ROUTES ----------------
 
-    // ---------------- APPLICATION ROUTES ----------------
+    app.post('/api/applications/bulk', protect, async (req, res) => {
+  try {
+    const applications = req.body;
+
+    if (!Array.isArray(applications) || applications.length === 0) {
+      return res.status(400).json({ message: 'Invalid or empty data for bulk upload.' });
+    }
+
+    // Optional: Validate fields for each item (basic check)
+    const invalidItem = applications.find(app => !app.name || !app.status);
+    if (invalidItem) {
+      return res.status(400).json({ message: 'Each application must have name and status.' });
+    }
+
+    const result = await db.collection('applications').insertMany(applications);
+
+    res.status(201).json({
+      message: `${result.insertedCount} applications uploaded successfully.`,
+      insertedIds: result.insertedIds,
+    });
+  } catch (err) {
+    console.error('Bulk upload error:', err);
+    res.status(500).json({ message: 'Error uploading applications in bulk.' });
+  }
+});
 
 // Get all applications
 app.get('/api/applications', protect, async (req, res) => {
