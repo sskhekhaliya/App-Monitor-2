@@ -13,7 +13,12 @@ import BulkUploadForm from './components/BulkUploadForm';
 import SettingsPage from './pages/SettingsPage';
 import './App.css';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.MODE === 'production'
+    ? 'https://app-monitor-2.onrender.com'
+    : 'http://localhost:3000');
+
 
 // For production, this should be set via environment variables (e.g., VITE_API_BASE_URL)
 
