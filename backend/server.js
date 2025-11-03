@@ -11,11 +11,11 @@ const app = express();
 const port = 3000;
 
 // --- Database Config ---
-const mongoUri = 'mongodb://127.0.0.1:27017';
+const mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017';
 const dbName = 'dashboardDB';
 
 // --- JWT Config ---
-const JWT_SECRET = 'your_super_secret_key_123'; // Change this in production!
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_for_local_dev_only';
 const TOKEN_EXPIRY = '1d';
 
 app.use(cors());
